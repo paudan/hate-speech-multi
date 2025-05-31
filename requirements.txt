@@ -1,0 +1,17 @@
+accelerate
+bitsandbytes
+bidict
+datasets
+datefinder
+emoji
+ftfy
+matplotlib
+mlflow
+pandas
+peft
+scikit-learn
+seaborn
+sentence-transformers
+tqdm
+tensorboardX
+transformers
