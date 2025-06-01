@@ -1,6 +1,7 @@
 accelerate
 bitsandbytes
 bidict
+captum
 datasets
 datefinder
 emoji
