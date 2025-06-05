@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+__author__ = "Paulius Danėnas"
+__copyright__ = "Copyright 2025, Paulius Danėnas, Kaunas University of Technology"
+__maintainer__ = "Paulius Danėnas"
+__email__ = "danpaulius@gmail.com"
+
+
 import glob
 import os
 import shutil

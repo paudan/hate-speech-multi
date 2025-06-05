@@ -1,3 +1,11 @@
+# -*- coding: utf-8 -*-
+
+__author__ = "Paulius Danėnas"
+__copyright__ = "Copyright 2025, Paulius Danėnas, Kaunas University of Technology"
+__maintainer__ = "Paulius Danėnas"
+__email__ = "danpaulius@gmail.com"
+
+
 import copy
 from peft import LoraConfig, get_peft_model, TaskType
 from peft.tuners.lora.corda import preprocess_corda

@@ -1,4 +1,11 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
+__author__ = "Paulius Danėnas"
+__copyright__ = "Copyright 2025, Paulius Danėnas, Kaunas University of Technology"
+__maintainer__ = "Paulius Danėnas"
+__email__ = "danpaulius@gmail.com"
+
 
 import argparse
 import json
@@ -23,7 +30,6 @@ from dataset.multitask_dataset import MultitaskDatasetLong
 from models.predict import MultiTaskModel
 from models.multitask_classifier import TransformerMultiTaskClassifier
 from models.utils import create_trained_model
-
 
 os.environ["TOKENIZERS_PARALLELISM"] = 'true'
 os.environ['WANDB_DISABLED'] = 'true'
