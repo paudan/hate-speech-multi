@@ -5,6 +5,7 @@ import glob
 import os
 import shutil
 from pathlib import Path
+import datasets
 import pandas as pd
 from tqdm import tqdm
 try:
@@ -13,8 +14,9 @@ except ImportError:
     from utils import split_data_file
 
 
-def create_agg_multitask_dataset(file_path):
-    data = pd.read_csv(file_path)
+def create_agg_multitask_dataset():
+    dataset = datasets.load_dataset('ucberkeley-dlab/measuring-hate-speech')   
+    data = dataset['train'].to_pandas()
     target_columns = list(filter(lambda x: x.startswith('target'), data.columns.tolist()))
     # As we have multiple annotators, use majority voting to define final labels
     additional_columns = ['hatespeech']
@@ -39,20 +41,20 @@ def create_agg_multitask_dataset(file_path):
     final_df = final_df.drop(labels='comment_id', axis=1)
     return final_df
 
-def create_wide_format_dataset(file_path, output_path):
+def create_wide_format_dataset(output_path):
     output_file = os.path.join(output_path, "berkeley_dataset_multi.parquet")
-    final_dataset = create_agg_multitask_dataset(file_path)
+    final_dataset = create_agg_multitask_dataset()
     final_dataset.to_parquet(output_file)
     final_dataset.to_csv(os.path.join(output_path, "berkeley_dataset_multi.csv"), index=None)
     final_dataset = split_data_file(output_file)
     final_dataset.save_to_disk(os.path.join(output_path, "hf_berkeley_multi_wide"))
 
-def create_long_format_dataset(file_path, output_path):
+def create_long_format_dataset(output_path):
     if isinstance(output_path, str):
         output_path = Path(output_path)
     shutil.rmtree(output_path/"berkeley_dataset", ignore_errors=True)
     shutil.rmtree(output_path/"hf_berkeley_multi", ignore_errors=True)
-    dataset = create_agg_multitask_dataset(file_path)
+    dataset = create_agg_multitask_dataset()
     final_df = pd.melt(dataset, id_vars='text', var_name='target')
     final_df['task_name'] = final_df['target']  # Preserve task name column
     final_df.to_parquet(output_path/"berkeley_dataset", partition_cols="target")
@@ -64,8 +66,6 @@ def create_long_format_dataset(file_path, output_path):
 
 
 if __name__ == '__main__':
-    DATA_DIR = Path("/mnt/DATA/datasets/hate-speech")
-    file_path = DATA_DIR/'measuring-hate-speech.csv'
     output_path = 'data'
-    create_wide_format_dataset(file_path, output_path)
-    create_long_format_dataset(file_path, output_path)
+    create_wide_format_dataset(output_path)
+    create_long_format_dataset(output_path)
