@@ -10,9 +10,26 @@ import numpy as np
 from datasets import load_dataset, DatasetDict, concatenate_datasets
 from sklearn.utils import compute_class_weight
 
-def split_data_file(data_file, class_col=None, train_size=0.7):
+def create_balanced_dataset(dataset, class_col, sample_ratio=1):
+    unique, counts = np.unique(dataset[class_col], return_counts=True)
+    subsets = []
+    sample_size = min(counts)
+    minority_class = np.argmin(counts)
+    for ind, val in enumerate(counts):
+        subset = dataset.filter(lambda x: x[class_col] == ind)
+        if ind != minority_class:
+            sample_size = np.ceil(sample_size * sample_ratio).astype(int)
+        sampled = np.random.choice(range(val), size=sample_size)
+        subset = subset.select(sampled)
+        subsets.append(subset)
+    sampled_dataset = concatenate_datasets(subsets)
+    return sampled_dataset
+
+def split_data_file(data_file, class_col=None, train_size=0.7, balance_dataset=False, sample_ratio=1):
     dataset: DatasetDict = load_dataset("parquet", data_files=[data_file], cache_dir='cache')
     train_split = dataset['train']
+    if balance_dataset:
+        train_split = create_balanced_dataset(train_split, class_col, sample_ratio)    
     if class_col:
         train_split = train_split.class_encode_column(class_col)
     splits = train_split.train_test_split(train_size=train_size, stratify_by_column=class_col)
