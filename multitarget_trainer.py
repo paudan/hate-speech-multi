@@ -15,9 +15,9 @@ from functools import partial
 import numpy as np
 import pandas as pd
 import mlflow
-import torch
 from torch.utils.data import Subset
 from transformers import AutoTokenizer, TrainingArguments, Trainer
+from transformers import set_seed
 from transformers.integrations import MLflowCallback
 from transformers.trainer_callback import EarlyStoppingCallback
 from sklearn.metrics import (
@@ -33,11 +33,6 @@ os.environ["TOKENIZERS_PARALLELISM"] = 'true'
 os.environ['WANDB_DISABLED'] = 'true'
 SEED = 42
 
-
-def set_seed():
-    np.random.seed(SEED)
-    torch.manual_seed(SEED)
-    torch.cuda.manual_seed(SEED)
 
 def get_training_args(output_dir, batch_size=8, num_epochs=20, eval_batch_size=64):
     return TrainingArguments(
@@ -122,7 +117,7 @@ def train_eval_model(model_path, data_dir, cache_dir=None, output_dir='test-clas
                      batch_size=16, eval_batch_size=64, num_epochs=20, 
                      tuned_layers_count=0, dropout=0.1, pos_label=1, 
                      use_lora=False, use_corda=False, model_args={}, lora_args={}):
-    set_seed()
+    set_seed(SEED)
     if use_corda is True:
         use_lora = True
     tokenizer = AutoTokenizer.from_pretrained(model_path, cache_dir=cache_dir)

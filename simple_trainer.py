@@ -14,6 +14,7 @@ import mlflow
 import torch
 from datasets import Dataset
 from transformers import AutoTokenizer, AutoConfig, TrainingArguments, Trainer
+from transformers import set_seed
 from transformers.integrations import MLflowCallback
 from transformers.trainer_callback import EarlyStoppingCallback
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support, roc_auc_score, cohen_kappa_score
@@ -24,11 +25,6 @@ os.environ["TOKENIZERS_PARALLELISM"] = 'true'
 os.environ['WANDB_DISABLED'] = 'true'
 SEED = 42
 
-
-def set_seed():
-    np.random.seed(SEED)
-    torch.manual_seed(SEED)
-    torch.cuda.manual_seed(SEED)
 
 def get_training_args(output_dir, batch_size=8, num_epochs=20, eval_batch_size=64):
     return TrainingArguments(
@@ -101,7 +97,7 @@ def train_eval_model(model_path, inputs, targets, train_size=0.7, valid_size=0.1
                      save_final=True, save_model_dir='final_classifier', 
                      batch_size=16, eval_batch_size=64, num_epochs=20, 
                      tuned_layers_count=0, dropout=0.1, pos_label=0, **model_args):
-    set_seed()
+    set_seed(SEED)
     targets = list(map(int, targets))
     tokenizer = AutoTokenizer.from_pretrained(model_path, cache_dir=cache_dir)
     tokenize_fn = lambda examples: tokenizer(examples["text"], padding="max_length", truncation=True)
