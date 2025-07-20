@@ -121,11 +121,11 @@ def calculate_scores(actual, predictions, task_name, average='binary', pos_label
     }
 
 
-def evaluate_model(model_dir, eval_data_dir, cache_dir):
+def evaluate_model(model_dir, eval_data_dir, cache_dir, pos_label=1):
     model = MultiTaskModel(model_dir, cache_dir)
     dataset = MultitaskDatasetLong(
         eval_data_dir, 
-        AutoTokenizer.from_pretrained(model_dir, cache_dir=cache_dir), 
+        preprocessor=AutoTokenizer.from_pretrained(model_dir, cache_dir=cache_dir), 
         split='train', 
         class_maps=model.class_maps, 
         on_missing_class='ignore'
@@ -133,10 +133,15 @@ def evaluate_model(model_dir, eval_data_dir, cache_dir):
     results = model.evaluate(dataset)
     results = pd.DataFrame(results)
     tasks = results['task'].unique()
+    all_evals = []
     for task in tasks:
         print("Task:", task)
         task_filter = results['task'] == task
-        print(classification_report(results['actual'][task_filter], results['predicted'][task_filter]))
+        actual = results['actual'][task_filter]
+        predicted = results['predicted'][task_filter]
+        average_ = 'binary' if len(actual.unique()) == 2 else 'micro'
+        all_evals.append(calculate_scores(actual, predicted, task, average=average_, pos_label=pos_label))
+    return pd.DataFrame(all_evals)
 
 
 def train_eval_model(model_path, data_dir, cache_dir=None, output_dir='test-classifier', 
