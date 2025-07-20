@@ -47,6 +47,7 @@ def create_agg_multitask_dataset():
     final_df = final_df.drop(labels='comment_id', axis=1)
     return final_df
 
+
 def create_wide_format_dataset(output_path):
     output_file = os.path.join(output_path, "berkeley_dataset_multi.parquet")
     final_dataset = create_agg_multitask_dataset()
@@ -55,20 +56,24 @@ def create_wide_format_dataset(output_path):
     final_dataset = split_data_file(output_file)
     final_dataset.save_to_disk(os.path.join(output_path, "hf_berkeley_multi_wide"))
 
-def create_long_format_dataset(output_path):
+
+def create_long_format_dataset(output_path, dataset_name="berkeley_dataset", additional_data: str=None):
     if isinstance(output_path, str):
         output_path = Path(output_path)
-    shutil.rmtree(output_path/"berkeley_dataset", ignore_errors=True)
-    shutil.rmtree(output_path/"hf_berkeley_multi", ignore_errors=True)
+    shutil.rmtree(output_path/dataset_name, ignore_errors=True)
+    shutil.rmtree(output_path/f"{dataset_name}_multi", ignore_errors=True)
     dataset = create_agg_multitask_dataset()
     final_df = pd.melt(dataset, id_vars='text', var_name='target')
+    if additional_data is not None:
+        add_df = pd.read_csv(additional_data)
+        final_df = pd.concat([final_df, add_df])
     final_df['task_name'] = final_df['target']  # Preserve task name column
-    final_df.to_parquet(output_path/"berkeley_dataset", partition_cols="target")
-    parquet_files = glob.glob(f"{str(output_path)}/berkeley_dataset/**/*.parquet", recursive=True)
+    final_df.to_parquet(output_path/dataset_name, partition_cols="target")
+    parquet_files = glob.glob(f"{str(output_path)}/{dataset_name}/**/*.parquet", recursive=True)
     for split_file in tqdm(parquet_files):
-        group_name = split_file.split(os.path.sep)[1]
+        group_name = split_file.split(os.path.sep)[-2]
         final_dataset = split_data_file(str(split_file), class_col='value')
-        final_dataset.save_to_disk(os.path.join(str(output_path), "hf_berkeley_multi", group_name))
+        final_dataset.save_to_disk(os.path.join(str(output_path), f"{dataset_name}_multi", group_name))
 
 
 if __name__ == '__main__':

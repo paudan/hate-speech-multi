@@ -174,6 +174,7 @@ cython_debug/
 .pypirc
 
 .virtual_documents/
+augmentation/**/*.json
 cache/
 data/
 example/
