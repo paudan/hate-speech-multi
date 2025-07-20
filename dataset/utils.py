@@ -6,7 +6,10 @@ __maintainer__ = "Paulius Danėnas"
 __email__ = "danpaulius@gmail.com"
 
 
+import os
+import glob
 import numpy as np
+from tqdm import tqdm
 from datasets import load_dataset, DatasetDict, concatenate_datasets
 from sklearn.utils import compute_class_weight
 
@@ -16,7 +19,7 @@ def create_balanced_dataset(dataset, class_col, sample_ratio=1):
     sample_size = min(counts)
     minority_class = np.argmin(counts)
     for ind, val in enumerate(counts):
-        subset = dataset.filter(lambda x: x[class_col] == ind)
+        subset = dataset.filter(lambda x: x[class_col] == unique[ind])
         if ind != minority_class:
             sample_size = np.ceil(sample_size * sample_ratio).astype(int)
         sampled = np.random.choice(range(val), size=sample_size)
@@ -39,6 +42,21 @@ def split_data_file(data_file, class_col=None, train_size=0.7, balance_dataset=F
         'validation': splits_val['train'],
         'test': splits_val['test']
     })
+
+def process_splits(final_df, output_path, dataset_name, balance_dataset=False, sample_ratio=1):
+    final_df['task_name'] = final_df['target']  # Preserve task name column
+    all_tasks = final_df['task_name'].unique()
+    final_df.to_parquet(output_path/dataset_name, partition_cols="target")
+    parquet_files = glob.glob(f"{str(output_path)}/{dataset_name}/**/*.parquet", recursive=True)
+    for split_file in tqdm(parquet_files):
+        group_name = split_file.split(os.path.sep)[-2]
+        if group_name.split("=")[1] in all_tasks:
+            print(group_name)
+            try:
+                final_dataset = split_data_file(str(split_file), class_col='value', balance_dataset=balance_dataset, sample_ratio=sample_ratio)
+                final_dataset.save_to_disk(os.path.join(str(output_path), f"{dataset_name}_multi", group_name))
+            except ValueError as e:
+                print(f"Error while processing group {group_name}, skipping: {e}")
 
 def load_complete_dataset(dataset_dir):
     dataset = DatasetDict.load_from_disk(dataset_dir)

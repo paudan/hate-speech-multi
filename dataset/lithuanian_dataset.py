@@ -9,23 +9,33 @@ __email__ = "danpaulius@gmail.com"
 
 import os
 import shutil
-import glob
 import itertools
 from pathlib import Path
 import pandas as pd
-from tqdm import tqdm
 try:
-    from .utils import split_data_file
+    from .utils import split_data_file, process_splits
 except ImportError:
-    from utils import split_data_file
+    from utils import split_data_file, process_splits
 
 
-def create_long_format_dataset(file_path, output_path, additional_data: str=None, dataset_name="lith_dataset",
-                               create_false_entries=False, balance_dataset=False, sample_ratio=1):
+def preprocess_targets(final_df: pd.DataFrame):
+    # Normalize name and set target to Other when it is not available
+    final_df['target'] = final_df['target'].str.replace(' ', '-')
+    final_df['target'] = final_df['target'].fillna('Other')
+    # Remove cases when targets do not have sufficient sample
+    counts = final_df['target'].value_counts()
+    selected = counts[counts > 5].index.tolist()
+    final_df = final_df[final_df['target'].isin(selected)]
+    return final_df
+
+
+def _create_long_format_dataset_hate(file_path, output_path, dataset_name="lith_dataset", additional_data: str=None, 
+                                    create_false_entries=False, balance_dataset=False, sample_ratio=1, clear_dirs=True):
     if isinstance(output_path, str):
         output_path = Path(output_path)
-    shutil.rmtree(output_path/dataset_name, ignore_errors=True)
-    shutil.rmtree(output_path/f"{dataset_name}_multi", ignore_errors=True)
+    if clear_dirs:
+        shutil.rmtree(output_path/dataset_name, ignore_errors=True)
+        shutil.rmtree(output_path/f"{dataset_name}_multi", ignore_errors=True)
     final_df = pd.concat([
         pd.read_excel(file_path, sheet_name='Hate', header=0, usecols=['Comment', 'Target']).assign(Value=1),
         pd.read_excel(file_path, sheet_name='Neutralūs', header=0, usecols=['Comment', 'Target']).assign(Value=0)
@@ -34,13 +44,7 @@ def create_long_format_dataset(file_path, output_path, additional_data: str=None
     if additional_data is not None:
         add_df = pd.read_csv(additional_data)
         final_df = pd.concat([final_df, add_df])
-    # Normalize name and set target to Other when it is not available
-    final_df['target'] = final_df['target'].str.replace(' ', '-')
-    final_df['target'] = final_df['target'].fillna('Other')
-    # Remove cases when targets do not have sufficient sample
-    counts = final_df['target'].value_counts()
-    selected = counts[counts > 5].index.tolist()
-    final_df = final_df[final_df['target'].isin(selected)]
+    final_df = preprocess_targets(final_df)
     # Create instances which have 0 value 
     if create_false_entries is True:
         new_df = list(itertools.product(final_df['text'].unique(), final_df['target'].unique()))
@@ -49,17 +53,38 @@ def create_long_format_dataset(file_path, output_path, additional_data: str=None
         for _, row in selected.iterrows():
             new_df.loc[((new_df['text'] == row['text']) & (new_df['target'] == row['target'])), 'value'] = row['value']
         final_df = new_df
-    final_df['task_name'] = final_df['target']  # Preserve task name column
-    final_df.to_parquet(output_path/dataset_name, partition_cols="target")
-    parquet_files = glob.glob(f"{str(output_path)}/{dataset_name}/**/*.parquet", recursive=True)
-    for split_file in tqdm(parquet_files):
-        group_name = split_file.split(os.path.sep)[-2]
-        print(group_name)
-        try:
-            final_dataset = split_data_file(str(split_file), class_col='value', balance_dataset=balance_dataset, sample_ratio=sample_ratio)
-            final_dataset.save_to_disk(os.path.join(str(output_path), f"{dataset_name}_multi", group_name))
-        except ValueError as e:
-            print(f"Error while processing group {group_name}, skipping: {e}")
+    process_splits(final_df, output_path, dataset_name, balance_dataset=balance_dataset, sample_ratio=sample_ratio)
+
+
+def _create_long_format_dataset_levels(file_path, output_path, dataset_name="lith_dataset", 
+                                      balance_dataset=False, sample_ratio=1, clear_dirs=True):
+    if isinstance(output_path, str):
+        output_path = Path(output_path)
+    if clear_dirs:
+        shutil.rmtree(output_path/dataset_name, ignore_errors=True)
+        shutil.rmtree(output_path/f"{dataset_name}_multi", ignore_errors=True)
+    levels_df = pd.concat([
+        pd.read_excel(file_path, sheet_name='Hate', header=0, usecols=['Comment', 'Target', 'HS Level Derived'])\
+            .rename(columns={'HS Level Derived': 'value'}),
+        pd.read_excel(file_path, sheet_name='Neutralūs', header=0, usecols=['Comment', 'Target']).assign(value="Level 0")
+    ])
+    levels_df.columns = ['text', 'target', 'value']
+    levels_df = preprocess_targets(levels_df)
+    levels_df['target'] = levels_df['target'].apply(lambda x: x + "-Level")
+    levels_df['value'] = levels_df['value'].astype(str)
+    process_splits(levels_df, output_path, dataset_name, balance_dataset=balance_dataset, sample_ratio=sample_ratio)
+
+
+def create_long_format_dataset(file_path, output_path, dataset_name="lith_dataset", additional_data: str=None, 
+                               create_false_entries=False, balance_dataset=False, sample_ratio=1, 
+                               add_levels_data=False):
+    _create_long_format_dataset_hate(
+        file_path, output_path, dataset_name, additional_data, create_false_entries, balance_dataset, sample_ratio, clear_dirs=True
+    )
+    if add_levels_data:
+        _create_long_format_dataset_levels(
+            file_path, output_path, dataset_name=dataset_name, balance_dataset=False, sample_ratio=sample_ratio, clear_dirs=False
+        )
 
 
 def create_wide_format_dataset(file_path, output_path, fill_value=0):
@@ -86,7 +111,7 @@ def create_wide_format_dataset(file_path, output_path, fill_value=0):
 
 
 if __name__ == '__main__':
-    file_path = Path("../data")/'DATASET No. 1 Ethnicity _ nationality _ race.xlsx'
+    file_path = Path("../raw")/'DATASET No. 1 Ethnicity _ nationality _ race.xlsx'
     output_path = 'data'
     create_long_format_dataset(file_path, output_path)
     create_long_format_dataset(file_path, output_path, 
@@ -99,5 +124,13 @@ if __name__ == '__main__':
         create_false_entries=True,
         balance_dataset=True,
         sample_ratio=1.5
+    )
+    create_long_format_dataset(file_path, output_path, 
+        additional_data=None, 
+        dataset_name="lith_dataset_levels",
+        create_false_entries=True,
+        balance_dataset=True,
+        sample_ratio=1.5,
+        add_levels_data=True
     )
     create_wide_format_dataset(file_path, output_path)
