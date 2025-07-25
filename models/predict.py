@@ -90,11 +90,40 @@ class BaseMultiTaskModel:
         processed = self.get_processed(text)
         probs = self.model(**processed)
         return probs[task]
+    
+    def agg_attributions(self, tokens, attributions, layer_attrs):
+        if not isinstance(layer_attrs, torch.Tensor):
+            layer_attrs = torch.tensor(layer_attrs)
+        splits = []
+        current_left = current_right = 0
+        for i, tok in enumerate(tokens):
+            if tok[0] != '#' and tok[-1] != '#':
+                if i < len(tokens)-1 and tokens[i+1][0] != '#':
+                    splits.append((current_left, current_left))
+                    current_left = i + 1
+                elif i == len(tokens)-1:
+                    splits.append((i, i))
+                    break
+                else:
+                    current_right = i + 1
+            elif tok[0] == '#' and tok[-1] != '#':
+                if i < len(tokens)-1 and tokens[i+1][0] != '#':
+                    splits.append((current_left, current_right))
+                    current_left = i + 1
+                else:
+                    current_right = i + 1
+        detokenized = [''.join(map(lambda x: x.strip('#'), tokens[left:right+1])) for left, right in splits]
+        attributions = torch.hstack([torch.max(attributions[left:right+1], dim=-1, keepdim=True)[0] for left, right in splits]).squeeze()
+        layer_attrs = torch.hstack([torch.max(layer_attrs[:, left:right+1], dim=-1, keepdim=True)[0] for left, right in splits]).squeeze()
+        return detokenized, attributions, layer_attrs
 
-    def plot_interpretability(self, text, task):
+    def plot_interpretability(self, text, task, detokenize=False):
         attributions, layer_attrs, delta_start = self.get_attributions(text, task)
         probs = self.get_predicted_probs(text, task)
         all_tokens = self.tokenizer.tokenize(text, add_special_tokens=True)
+        if detokenize:
+            all_tokens, attributions, layer_attrs = self.agg_attributions(all_tokens, attributions, layer_attrs)
+#        print(attributions, probs, all_tokens)
         position_vis = viz.VisualizationDataRecord(
             attributions,
             torch.max(probs, dim=1).values[0].detach().cpu().numpy(),
