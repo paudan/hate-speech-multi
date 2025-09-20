@@ -23,13 +23,14 @@ from .multitask_classifier import TransformerMultiTargetClassifier, TransformerM
 
 class BaseMultiTaskModel:
 
-    def __init__(self, base_class, model_dir, cache_dir):
+    def __init__(self, base_class, model_dir, ig_batch_size=2, cache_dir=None):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         with open(os.path.join(model_dir, 'class_maps.pkl'), 'rb') as f:
             class_maps = pickle.load(f)
         self.class_maps = class_maps
         self.tokenizer = AutoTokenizer.from_pretrained(model_dir)
         self.model = base_class.from_pretrained(model_dir, cache_dir=cache_dir, class_maps=class_maps).to(self.device)
+        self.ig_batch_size = ig_batch_size
         self.model.eval()
         self.model.zero_grad()
 
@@ -56,7 +57,7 @@ class BaseMultiTaskModel:
         prediction = {task: pred for task, pred in prediction.items()}
         return prediction[task].max(1).values
     
-    def get_attributions(self, text, task):
+    def get_attributions(self, text, task, n_steps=50):
         processed = self.get_processed(text)
 
         def summarize_attributions(attributions):
@@ -67,8 +68,9 @@ class BaseMultiTaskModel:
         lig = LayerIntegratedGradients(self._forward_func, self.model.base_model.embeddings)
         attributions, delta_start = lig.attribute(inputs=processed['input_ids'], 
             additional_forward_args=(task, processed['token_type_ids'], processed['attention_mask']),
-            internal_batch_size=2,
-            return_convergence_delta=True
+            internal_batch_size=self.ig_batch_size,
+            return_convergence_delta=True,
+            n_steps=n_steps
         )
         attributions = summarize_attributions(attributions)
         layer_attrs = []
@@ -81,7 +83,8 @@ class BaseMultiTaskModel:
             layer_attributions = lc.attribute(
                 inputs=input_embeddings, 
                 additional_forward_args=(task, processed['attention_mask']),
-                internal_batch_size=2
+                internal_batch_size=self.ig_batch_size,
+                n_steps=n_steps
             )
             layer_attrs.append(summarize_attributions(layer_attributions).cpu().detach().tolist())
         return attributions, layer_attrs, delta_start
@@ -117,8 +120,8 @@ class BaseMultiTaskModel:
         layer_attrs = torch.hstack([torch.max(layer_attrs[:, left:right+1], dim=-1, keepdim=True)[0] for left, right in splits]).squeeze()
         return detokenized, attributions, layer_attrs
 
-    def plot_interpretability(self, text, task, detokenize=False):
-        attributions, layer_attrs, delta_start = self.get_attributions(text, task)
+    def plot_interpretability(self, text, task, n_steps=50, detokenize=False):
+        attributions, layer_attrs, delta_start = self.get_attributions(text, task, n_steps)
         probs = self.get_predicted_probs(text, task)
         all_tokens = self.tokenizer.tokenize(text, add_special_tokens=True)
         if detokenize:
@@ -134,7 +137,8 @@ class BaseMultiTaskModel:
             all_tokens,
             delta_start
         )
-        print(f"Visualization for target {task}")
+        task_name = list(self.class_maps.keys())[task]
+        print(f"Visualization for target {task_name}")
         viz.visualize_text([position_vis])
         fig, ax = plt.subplots(figsize=(15,5))
         xticklabels=all_tokens
@@ -148,8 +152,8 @@ class BaseMultiTaskModel:
 
 class MultiTargetModel(BaseMultiTaskModel):
 
-    def __init__(self, model_dir, cache_dir):
-        super().__init__(TransformerMultiTargetClassifier, model_dir, cache_dir)
+    def __init__(self, model_dir, **args):
+        super().__init__(TransformerMultiTargetClassifier, model_dir, **args)
 
     def predict(self, text):
         processed = self.get_processed(text)
@@ -160,8 +164,8 @@ class MultiTargetModel(BaseMultiTaskModel):
 
 class MultiTaskModel(BaseMultiTaskModel):
 
-    def __init__(self, model_dir, cache_dir):
-        super().__init__(TransformerMultiTaskClassifier, model_dir, cache_dir)
+    def __init__(self, model_dir, **args):
+        super().__init__(TransformerMultiTaskClassifier, model_dir, **args)
 
     def predict(self, inputs, task=None):
         processed = None
