@@ -15,4 +15,4 @@ seaborn
 sentence-transformers
 tqdm
 tensorboardX
-transformers
+transformers==4.56

@@ -42,12 +42,15 @@ def load_task_dataset(task_dir, split):
 
 class SimpleDataset(Dataset):
 
-    def __init__(self, inputs, targets, preprocessor: Union[PreTrainedTokenizer, PreTrainedTokenizerFast]):
+    def __init__(self, inputs, targets, preprocessor: Union[PreTrainedTokenizer, PreTrainedTokenizerFast], tokenizer_args={}):
         super().__init__()
         self.data = inputs
         self.labels = targets
         self.preprocessor = preprocessor
         self.class_map = self.class_to_idx(targets)
+        self.tokenizer_args = TOKENIZER_ARGS
+        if isinstance(tokenizer_args, dict):
+            self.tokenizer_args.update(tokenizer_args)
 
     def class_to_idx(self, instance_labels):
         classes = sorted(set(instance_labels))
@@ -58,7 +61,7 @@ class SimpleDataset(Dataset):
 
     def __getitem__(self, index):
         inputs = preprocess_text(self.data[index])
-        inputs = self.preprocessor(inputs, **TOKENIZER_ARGS)
+        inputs = self.preprocessor(inputs, **self.tokenizer_args)
         inputs['labels'] = self.class_map[self.labels[index]]
         return inputs
 
@@ -66,7 +69,7 @@ class SimpleDataset(Dataset):
 class MultitaskDatasetWide(Dataset):
 
     def __init__(self, dataset_dir: DatasetDict, preprocessor: Union[PreTrainedTokenizer, PreTrainedTokenizerFast],
-                 split=None, class_maps=None, load_all_data=False):
+                 split=None, class_maps=None, load_all_data=False, tokenizer_args={}):
         super().__init__()
         if split is None and load_complete_dataset is False:
             raise ValueError("split parameter must be set if load_complete_dataset is set to False")
@@ -80,6 +83,9 @@ class MultitaskDatasetWide(Dataset):
         self.class_maps = class_maps
         if self.class_maps is None:
             self.class_maps = {column: self.class_to_idx(self.data[column]) for column in self.label_columns}
+        self.tokenizer_args = TOKENIZER_ARGS
+        if isinstance(tokenizer_args, dict):
+            self.tokenizer_args.update(tokenizer_args)
 
     def class_to_idx(self, instance_labels):
         classes = sorted(set(instance_labels))
@@ -96,7 +102,7 @@ class MultitaskDatasetWide(Dataset):
         if isinstance(inputs, list):
             inputs = inputs[0]
         inputs = preprocess_text(inputs)
-        inputs = self.preprocessor(inputs, **TOKENIZER_ARGS)
+        inputs = self.preprocessor(inputs, **self.tokenizer_args)
         labels_mapped = []
         for column in self.label_columns:
              val = selected[column]
@@ -111,13 +117,16 @@ class MultitaskDatasetWide(Dataset):
 class MultitaskDatasetLong(Dataset):
 
     def __init__(self, dataset_dir: DatasetDict, preprocessor: Union[PreTrainedTokenizer, PreTrainedTokenizerFast],
-                 split, class_maps=None, on_missing_class='warn'):
+                 split, class_maps=None, on_missing_class='warn', tokenizer_args={}):
         super().__init__()
         self.class_maps = class_maps
         self.load_dataset_slice(dataset_dir, split)
         self.tasks = list(self.class_maps.keys())
         self.preprocessor = preprocessor
         self.on_missing_class = on_missing_class
+        self.tokenizer_args = TOKENIZER_ARGS
+        if isinstance(tokenizer_args, dict):
+            self.tokenizer_args.update(tokenizer_args)
 
     def load_dataset_slice(self, dataset_dir, split):
         self.task_splits = dict()
@@ -160,7 +169,7 @@ class MultitaskDatasetLong(Dataset):
                 print(err_msg + ". Setting task value to None")
             elif self.on_missing_class == 'ignore':
                 pass
-        inputs = self.preprocessor(inputs, **TOKENIZER_ARGS)
+        inputs = self.preprocessor(inputs, **self.tokenizer_args)
         inputs['tasks'] = self.tasks.index(task) if task in self.tasks else np.nan
         if class_map is not None:
             inputs['labels'] = class_map[selected_entry['value']]

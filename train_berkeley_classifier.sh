@@ -4,7 +4,7 @@ BATCH_SIZE=64
 EVAL_BATCH_SIZE=128
 NUM_EPOCHS=20
 BASE_MODEL="intfloat/e5-small-v2"
-CACHE_DIR="../cache"
+CACHE_DIR="cache"
 
 python3 multitarget_trainer.py \
   --model-path $BASE_MODEL \

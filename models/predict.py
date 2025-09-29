@@ -28,7 +28,7 @@ class BaseMultiTaskModel:
         with open(os.path.join(model_dir, 'class_maps.pkl'), 'rb') as f:
             class_maps = pickle.load(f)
         self.class_maps = class_maps
-        self.tokenizer = AutoTokenizer.from_pretrained(model_dir)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_dir, cache_dir=cache_dir)
         self.model = base_class.from_pretrained(model_dir, cache_dir=cache_dir, class_maps=class_maps).to(self.device)
         self.ig_batch_size = ig_batch_size
         self.model.eval()
@@ -152,8 +152,8 @@ class BaseMultiTaskModel:
 
 class MultiTargetModel(BaseMultiTaskModel):
 
-    def __init__(self, model_dir, **args):
-        super().__init__(TransformerMultiTargetClassifier, model_dir, **args)
+    def __init__(self, model_dir, model_class=TransformerMultiTargetClassifier, **args):
+        super().__init__(model_class, model_dir, **args)
 
     def predict(self, text):
         processed = self.get_processed(text)
@@ -164,8 +164,8 @@ class MultiTargetModel(BaseMultiTaskModel):
 
 class MultiTaskModel(BaseMultiTaskModel):
 
-    def __init__(self, model_dir, **args):
-        super().__init__(TransformerMultiTaskClassifier, model_dir, **args)
+    def __init__(self, model_dir, model_class=TransformerMultiTaskClassifier, **args):
+        super().__init__(model_class, model_dir, **args)
 
     def predict(self, inputs, task=None):
         processed = None

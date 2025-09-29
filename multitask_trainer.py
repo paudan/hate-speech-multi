@@ -29,6 +29,7 @@ from sklearn.metrics import (
 )
 from dataset.multitask_dataset import MultitaskDatasetLong
 from models.predict import MultiTaskModel
+from models.multitask_gemma import GemmaMultiTaskClassifier
 from models.multitask_classifier import TransformerMultiTaskClassifier
 from models.utils import create_trained_model
 
@@ -144,32 +145,32 @@ def evaluate_model(model_dir, eval_data_dir, cache_dir, pos_label=1):
     return pd.DataFrame(all_evals)
 
 
-def train_eval_model(model_path, data_dir, cache_dir=None, output_dir='test-classifier', 
+def train_eval_model(model_path, data_dir, model_class=TransformerMultiTaskClassifier,
+                     cache_dir=None, output_dir='test-classifier', 
                      save_final=True, save_model_dir='final_classifier', 
                      batch_size=16, eval_batch_size=64, num_epochs=20, 
                      tuned_layers_count=0, dropout=0.1, pos_label=1, 
-                     use_lora=False, use_corda=False, model_args={}, lora_args={}):
+                     use_lora=False, use_corda=False, 
+                     model_args={}, lora_args={}, tokenizer_args={}):
     set_seed(SEED)
     if use_corda is True:
         use_lora = True
     tokenizer = AutoTokenizer.from_pretrained(model_path, cache_dir=cache_dir)
-    train_dataset = MultitaskDatasetLong(data_dir, tokenizer, split='train')
+    train_dataset = MultitaskDatasetLong(data_dir, tokenizer, split='train', tokenizer_args=tokenizer_args)
     class_maps = train_dataset.class_maps
-    valid_dataset = MultitaskDatasetLong(data_dir, tokenizer, split='validation', class_maps=class_maps)
-    test_dataset = MultitaskDatasetLong(data_dir, tokenizer, split='test', class_maps=class_maps)
+    valid_dataset = MultitaskDatasetLong(data_dir, tokenizer, split='validation', class_maps=class_maps, tokenizer_args=tokenizer_args)
+    test_dataset = MultitaskDatasetLong(data_dir, tokenizer, split='test', class_maps=class_maps, tokenizer_args=tokenizer_args)
     # Testing mode
     # train_dataset = Subset(train_dataset, torch.randint(low=0, high=10000, size=(1000,)))
     # valid_dataset = Subset(valid_dataset, torch.randint(low=0, high=5000, size=(500,)))
     # test_dataset = Subset(test_dataset, torch.randint(low=0, high=5000, size=(500,)))
-    margs = dict(
-        class_maps=class_maps,
-        tuned_layers_count=tuned_layers_count if not use_lora else 0,
-        dropout=dropout
-    )
+    margs = dict(class_maps=class_maps, dropout=dropout)
+    if model_class == TransformerMultiTaskClassifier:
+        margs['tuned_layers_count'] = tuned_layers_count if not use_lora else 0
     margs.update(model_args)
     trainer = Trainer(
         model=create_trained_model(
-            TransformerMultiTaskClassifier, 
+            model_class, 
             model_path, 
             cache_dir=cache_dir,
             train_dataset=train_dataset,
@@ -219,6 +220,7 @@ def train_eval_model(model_path, data_dir, cache_dir=None, output_dir='test-clas
 
 def main():
     parser = argparse.ArgumentParser(description="Train and evaluate multitarget classifier")
+    parser.add_argument('--model-type', type=str, help='Base model architecture', required=False, choices=['bert', 'gemma'], default='bert')
     parser.add_argument('--model-path', type=str, help='Path to pre-trained model', required=True)
     parser.add_argument('--data-dir', type=str, help='Data directory', required=True)
     parser.add_argument('--cache-dir', type=str, default="cache", help='Cache directory')
@@ -235,11 +237,17 @@ def main():
     parser.add_argument('--use-corda', action='store_true', default=False, help='Use CORDA')
     parser.add_argument('--model-args', help='Additional model args', type=json.loads, required=False, default={})
     parser.add_argument('--lora-args', help='LoRa args', type=json.loads, required=False, default={})
+    parser.add_argument('--tokenizer-args', help='Tokenizer args', type=json.loads, required=False, default={})
 
     args = parser.parse_args()
+    base_classes = {
+        'bert': TransformerMultiTaskClassifier,
+        'gemma': GemmaMultiTaskClassifier
+    }
     train_eval_model(
         model_path=args.model_path,
         data_dir=args.data_dir,
+        model_class=base_classes[args.model_type],
         cache_dir=args.cache_dir,
         output_dir=args.output_dir,
         save_final=args.save_final,
@@ -253,7 +261,8 @@ def main():
         use_lora=args.use_lora,
         use_corda=args.use_corda,
         model_args=args.model_args,
-        lora_args=args.lora_args
+        lora_args=args.lora_args,
+        tokenizer_args=args.tokenizer_args
     )
 
 if __name__ == "__main__":

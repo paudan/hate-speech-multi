@@ -10,8 +10,9 @@ import copy
 from peft import LoraConfig, get_peft_model, TaskType
 from peft.tuners.lora.corda import preprocess_corda
 from tqdm import tqdm
-from transformers import AutoConfig
+from transformers import AutoConfig, Gemma3TextConfig
 import torch
+from .multitask_gemma import GemmaMultiTaskClassifier
 
 
 def create_trained_model(model_class, model_path, cache_dir=None,
@@ -21,10 +22,13 @@ def create_trained_model(model_class, model_path, cache_dir=None,
         raise Exception('train_dataset must be set of CoRDA fine-tuning is used')
     if use_corda is True:
         use_lora = True
-    device = 'cuda:0' if torch.cuda.is_available() else 'cpu' 
+    device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+    config_class = AutoConfig
+    if model_class == GemmaMultiTaskClassifier:
+        config_class = Gemma3TextConfig
     model = model_class.from_pretrained(
         model_path,
-        config=AutoConfig.from_pretrained(model_path, cache_dir=cache_dir),
+        config=config_class.from_pretrained(model_path, cache_dir=cache_dir),
         cache_dir=cache_dir,
         device_map=device,
         **model_args
