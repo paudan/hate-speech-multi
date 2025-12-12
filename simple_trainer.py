@@ -18,7 +18,7 @@ from transformers import set_seed
 from transformers.integrations import MLflowCallback
 from transformers.trainer_callback import EarlyStoppingCallback
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support, roc_auc_score, cohen_kappa_score
-from models.multitask_classifier import SimpleTransformerClassifier
+from models.multitask_bert import SimpleBertClassifier
 from models.multitask_gemma import SimpleGemmaClassifier
 from dataset.multitask_dataset import SimpleDataset, TOKENIZER_ARGS
 
@@ -93,19 +93,20 @@ def calculate_scores(actual, predictions, task_name, average='binary', pos_label
     }  
 
 
-def train_eval_model(model_path, inputs, targets, model_class=SimpleTransformerClassifier,
+def train_eval_model(model_path, inputs, targets, model_class=SimpleBertClassifier,
                      train_size=0.7, valid_size=0.15,
                      cache_dir=None, output_dir='test-classifier', task_name=None,
                      save_final=True, save_model_dir='final_classifier', 
                      batch_size=16, eval_batch_size=64, num_epochs=20, 
-                     tuned_layers_count=0, dropout=0.1, pos_label=0, tokenizer_args={}, **model_args):
+                     tuned_layers_count=0, dropout=0.1, pos_label=0, 
+                     tokenizer_args={}, model_args={}):
     set_seed(SEED)
     targets = list(map(int, targets))
     tokenizer = AutoTokenizer.from_pretrained(model_path, cache_dir=cache_dir)
     tokenizer_params = TOKENIZER_ARGS
     if tokenizer_args:
         tokenizer_params.update(tokenizer_args)
-    tokenize_fn = lambda examples: tokenizer(examples["text"], **tokenizer_params)
+    tokenize_fn = lambda examples: tokenizer(examples["text"], **tokenizer_args)
     train_dst = Dataset.from_generator(lambda: input_generator(inputs, targets)).train_test_split(train_size=train_size, shuffle=True, seed=SEED)
     tokenized_dataset = train_dst.map(tokenize_fn, batched=True)
     train_dataset = tokenized_dataset["train"].shuffle(seed=SEED)
@@ -120,7 +121,8 @@ def train_eval_model(model_path, inputs, targets, model_class=SimpleTransformerC
         cache_dir=cache_dir,
         device_map='cuda' if torch.cuda.is_available() else 'cpu',
         num_labels=len(set(targets)),
-        dropout=dropout
+        dropout=dropout,
+        **model_args
     )
     if model_class == SimpleGemmaClassifier:
         margs['tuned_layers_count'] = tuned_layers_count or 0

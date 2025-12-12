@@ -14,7 +14,7 @@ from transformers import BertConfig, BertModel
 from transformers.modeling_outputs import SequenceClassifierOutput
 
 
-class TransformerBackbone(BertModel):
+class BertBackbone(BertModel):
     config_class=BertConfig
 
     def __init__(self, config, tuned_layers_count=0):
@@ -51,7 +51,7 @@ class TransformerBackbone(BertModel):
         return x
 
 
-class SimpleTransformerClassifier(TransformerBackbone):
+class SimpleBertClassifier(BertBackbone):
 
     def __init__(self, config, num_labels=2, dropout=0.1, use_layer_norm=False, tuned_layers_count=0):
         super().__init__(config, tuned_layers_count=tuned_layers_count)
@@ -98,7 +98,7 @@ class SimpleTransformerClassifier(TransformerBackbone):
         )        
     
 
-class TransformerMultiHeadClassifier(TransformerBackbone):
+class BertMultiHeadClassifier(BertBackbone):
 
     def __init__(self, config, class_maps, dropout=0.1, use_layer_norm=False, tuned_layers_count=0, class_weights=None):
         super().__init__(config, tuned_layers_count=tuned_layers_count)
@@ -122,7 +122,7 @@ class TransformerMultiHeadClassifier(TransformerBackbone):
         return nn.ModuleList(layers)
 
 
-class TransformerMultiTargetClassifier(TransformerMultiHeadClassifier):
+class BertMultiTargetClassifier(BertMultiHeadClassifier):
 
     def forward(self,
         input_ids: Optional[torch.Tensor] = None,
@@ -182,7 +182,7 @@ class TransformerMultiTargetClassifier(TransformerMultiHeadClassifier):
         return SequenceClassifierOutput(loss=total_loss, logits=all_logits)
     
 
-class TransformerMultiTaskClassifier(TransformerMultiHeadClassifier):
+class BertMultiTaskClassifier(BertMultiHeadClassifier):
 
     def forward(self,
         input_ids: Optional[torch.Tensor] = None,

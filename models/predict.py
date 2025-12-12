@@ -18,7 +18,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from captum.attr import visualization as viz
 from captum.attr import LayerConductance, LayerIntegratedGradients
-from .multitask_classifier import TransformerMultiTargetClassifier, TransformerMultiTaskClassifier
+from .multitask_bert import BertMultiTargetClassifier, BertMultiTaskClassifier
 
 
 class BaseMultiTaskModel:
@@ -152,7 +152,7 @@ class BaseMultiTaskModel:
 
 class MultiTargetModel(BaseMultiTaskModel):
 
-    def __init__(self, model_dir, model_class=TransformerMultiTargetClassifier, **args):
+    def __init__(self, model_dir, model_class=BertMultiTargetClassifier, **args):
         super().__init__(model_class, model_dir, **args)
 
     def predict(self, text):
@@ -164,7 +164,7 @@ class MultiTargetModel(BaseMultiTaskModel):
 
 class MultiTaskModel(BaseMultiTaskModel):
 
-    def __init__(self, model_dir, model_class=TransformerMultiTaskClassifier, **args):
+    def __init__(self, model_dir, model_class=BertMultiTaskClassifier, **args):
         super().__init__(model_class, model_dir, **args)
 
     def predict(self, inputs, task=None):

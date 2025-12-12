@@ -30,7 +30,8 @@ from sklearn.metrics import (
 from dataset.multitask_dataset import MultitaskDatasetLong
 from models.predict import MultiTaskModel
 from models.multitask_gemma import GemmaMultiTaskClassifier
-from models.multitask_classifier import TransformerMultiTaskClassifier
+from models.multitask_bert import BertMultiTaskClassifier
+from models.multitask_modernbert import ModernBertMultiTaskClassifier
 from models.utils import create_trained_model
 
 os.environ["TOKENIZERS_PARALLELISM"] = 'true'
@@ -145,7 +146,7 @@ def evaluate_model(model_dir, eval_data_dir, cache_dir, pos_label=1):
     return pd.DataFrame(all_evals)
 
 
-def train_eval_model(model_path, data_dir, model_class=TransformerMultiTaskClassifier,
+def train_eval_model(model_path, data_dir, model_class=BertMultiTaskClassifier,
                      cache_dir=None, output_dir='test-classifier', 
                      save_final=True, save_model_dir='final_classifier', 
                      batch_size=16, eval_batch_size=64, num_epochs=20, 
@@ -165,7 +166,7 @@ def train_eval_model(model_path, data_dir, model_class=TransformerMultiTaskClass
     # valid_dataset = Subset(valid_dataset, torch.randint(low=0, high=5000, size=(500,)))
     # test_dataset = Subset(test_dataset, torch.randint(low=0, high=5000, size=(500,)))
     margs = dict(class_maps=class_maps, dropout=dropout)
-    if model_class == TransformerMultiTaskClassifier:
+    if model_class in (BertMultiTaskClassifier, ModernBertMultiTaskClassifier):
         margs['tuned_layers_count'] = tuned_layers_count if not use_lora else 0
     margs.update(model_args)
     trainer = Trainer(
@@ -220,7 +221,7 @@ def train_eval_model(model_path, data_dir, model_class=TransformerMultiTaskClass
 
 def main():
     parser = argparse.ArgumentParser(description="Train and evaluate multitarget classifier")
-    parser.add_argument('--model-type', type=str, help='Base model architecture', required=False, choices=['bert', 'gemma'], default='bert')
+    parser.add_argument('--model-type', type=str, help='Base model architecture', required=False, choices=['bert', 'gemma', 'modernbert'], default='bert')
     parser.add_argument('--model-path', type=str, help='Path to pre-trained model', required=True)
     parser.add_argument('--data-dir', type=str, help='Data directory', required=True)
     parser.add_argument('--cache-dir', type=str, default="cache", help='Cache directory')
@@ -241,7 +242,8 @@ def main():
 
     args = parser.parse_args()
     base_classes = {
-        'bert': TransformerMultiTaskClassifier,
+        'bert': BertMultiTaskClassifier,
+        'modernbert': ModernBertMultiTaskClassifier,
         'gemma': GemmaMultiTaskClassifier
     }
     train_eval_model(

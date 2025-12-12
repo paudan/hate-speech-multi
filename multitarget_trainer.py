@@ -26,7 +26,8 @@ from sklearn.metrics import (
 )
 from dataset.multitask_dataset import MultitaskDatasetWide
 from dataset.utils import calculate_class_weights
-from models.multitask_classifier import TransformerMultiTargetClassifier
+from models.multitask_bert import BertMultiTargetClassifier
+from models.multitask_modernbert import ModernBertMultiTargetClassifier
 from models.multitask_gemma import GemmaMultiTargetClassifier
 from models.utils import create_trained_model
 
@@ -113,7 +114,7 @@ def calculate_scores(actual, predictions, task_name, average='binary', pos_label
     }
 
 
-def train_eval_model(model_path, data_dir, model_class=TransformerMultiTargetClassifier,
+def train_eval_model(model_path, data_dir, model_class=BertMultiTargetClassifier,
                      cache_dir=None, output_dir='test-classifier', 
                      save_final=True, save_model_dir='final_classifier', 
                      batch_size=16, eval_batch_size=64, num_epochs=20, 
@@ -138,7 +139,7 @@ def train_eval_model(model_path, data_dir, model_class=TransformerMultiTargetCla
         class_weights=calculate_class_weights(data_dir),
         dropout=dropout
     )
-    if model_class == TransformerMultiTargetClassifier:
+    if model_class in (BertMultiTargetClassifier, ModernBertMultiTargetClassifier):
         margs['tuned_layers_count'] = tuned_layers_count if not use_lora else 0
     margs.update(model_args)
     trainer = Trainer(
@@ -191,7 +192,7 @@ def train_eval_model(model_path, data_dir, model_class=TransformerMultiTargetCla
 
 def main():
     parser = argparse.ArgumentParser(description="Train and evaluate multitarget classifier")
-    parser.add_argument('--model-type', type=str, help='Base model architecture', required=False, choices=['bert', 'gemma'], default='bert')
+    parser.add_argument('--model-type', type=str, help='Base model architecture', required=False, choices=['bert', 'gemma', 'modernbert'], default='bert')
     parser.add_argument('--model-path', type=str, help='Path to pre-trained model', required=True)
     parser.add_argument('--data-dir', type=str, help='Data directory', required=True)
     parser.add_argument('--cache-dir', type=str, default="cache", help='Cache directory')
@@ -211,7 +212,8 @@ def main():
 
     args = parser.parse_args()
     base_classes = {
-        'bert': TransformerMultiTargetClassifier,
+        'bert': BertMultiTargetClassifier,
+        'modernbert': ModernBertMultiTargetClassifier,
         'gemma': GemmaMultiTargetClassifier
     }
     train_eval_model(
