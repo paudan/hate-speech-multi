@@ -27,7 +27,7 @@ class ModernBertBackbone(ModernBertModel):
             # Unfreeze last frozen_layers_count layers for finetuning
             if tuned_layers_count > 0:
                 for idx in range(-1, -tuned_layers_count-1, -1):
-                    for param in self.encoder.layer[idx].parameters():
+                    for param in self.layers[idx].parameters():
                         param.requires_grad = True
 
     def embed(self,
@@ -113,8 +113,7 @@ class SimpleModernBertClassifier(ModernBertBackbone):
             x = (x * attention_mask.unsqueeze(-1)).sum(dim=1) / attention_mask.sum(dim=1, keepdim=True)
             
         x = self.head(x)
-        if self.use_layer_norm:
-            x = self.layernorm(x)
+        x = torch.nan_to_num(x, 0)
         x = self.dropout(x)
         logits = self.classifier(x)
         if labels is None:
