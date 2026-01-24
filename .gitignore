@@ -187,4 +187,5 @@ results/
 *.parquet
 # Test cases
 test-classifier*/
+Untitled-*.ipynb
 test-*.ipynb
