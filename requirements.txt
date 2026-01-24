@@ -10,6 +10,7 @@ matplotlib
 mlflow
 pandas
 peft
+pytorch-focalloss
 scikit-learn
 seaborn
 sentence-transformers

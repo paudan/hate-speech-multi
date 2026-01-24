@@ -12,6 +12,7 @@ import torch
 import torch.nn as nn
 from transformers import BertConfig, BertModel
 from transformers.modeling_outputs import SequenceClassifierOutput
+from torch_focalloss import MultiClassFocalLoss
 
 
 class BertBackbone(BertModel):
@@ -53,8 +54,14 @@ class BertBackbone(BertModel):
 
 class SimpleBertClassifier(BertBackbone):
 
-    def __init__(self, config, num_labels=2, dropout=0.1, use_layer_norm=False, tuned_layers_count=0):
+    def __init__(
+            self, config, num_labels=2, dropout=0.1, 
+            use_focal_loss=False, focal_loss_gamma=2, 
+            use_layer_norm=False, tuned_layers_count=0
+    ):
         super().__init__(config, tuned_layers_count=tuned_layers_count)
+        self.use_focal_loss = use_focal_loss
+        self.focal_loss_gamma = focal_loss_gamma
         self.use_layer_norm = use_layer_norm
         self.num_labels = num_labels
         if use_layer_norm:
@@ -88,7 +95,10 @@ class SimpleBertClassifier(BertBackbone):
         if labels is None:
             return torch.softmax(logits, dim=-1)
         loss = None
-        loss_fct = nn.CrossEntropyLoss()
+        if self.use_focal_loss:
+            loss_fct = MultiClassFocalLoss(gamma=self.focal_loss_gamma)
+        else:
+            loss_fct = nn.CrossEntropyLoss()
         loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
         if not return_dict:
             return ((loss,) + (logits,)) if loss is not None else logits
@@ -100,12 +110,18 @@ class SimpleBertClassifier(BertBackbone):
 
 class BertMultiHeadClassifier(BertBackbone):
 
-    def __init__(self, config, class_maps, dropout=0.1, use_layer_norm=False, tuned_layers_count=0, class_weights=None):
+    def __init__(
+        self, config, class_maps, dropout=0.1, 
+        use_focal_loss=False, focal_loss_gamma=2, focal_loss_alpha=0.25, 
+        use_layer_norm=False, tuned_layers_count=0, class_weights=None
+    ):
         super().__init__(config, tuned_layers_count=tuned_layers_count)
         self.class_maps = class_maps
         self.class_weights = class_weights
         self.columns = list(self.class_maps.keys())
         self.dropout = dropout
+        self.use_focal_loss = use_focal_loss
+        self.focal_loss_gamma = focal_loss_gamma
         self.use_layer_norm = use_layer_norm
         self.heads = nn.ModuleList(list(map(self._create_head, self.columns)))
 
@@ -171,7 +187,10 @@ class BertMultiTargetClassifier(BertMultiHeadClassifier):
                 all_preds[column] = torch.softmax(logits, dim=-1)
             else:
                 loss = None
-                loss_fct = nn.CrossEntropyLoss(weight=col_weights)
+                if self.use_focal_loss:
+                    loss_fct = MultiClassFocalLoss(gamma=self.focal_loss_gamma, alpha=col_weights)
+                else:
+                    loss_fct = nn.CrossEntropyLoss(weight=col_weights)
                 loss = loss_fct(logits.view(-1, num_labels), labels[:, column_index].view(-1))
                 total_loss += loss
                 all_logits.append(logits)
@@ -244,7 +263,10 @@ class BertMultiTaskClassifier(BertMultiHeadClassifier):
                 all_preds.update(dict(zip(current_index, torch.softmax(logits, dim=-1))))
             else:
                 loss = None
-                loss_fct = nn.CrossEntropyLoss(weight=col_weights)
+                if self.use_focal_loss:
+                    loss_fct = MultiClassFocalLoss(gamma=self.focal_loss_gamma, alpha=col_weights)
+                else:
+                    loss_fct = nn.CrossEntropyLoss(weight=col_weights)
                 loss = loss_fct(logits.view(-1, num_labels), labels[task_index].view(-1))
                 total_loss += loss
                 all_logits.update(dict(zip(current_index, logits)))
