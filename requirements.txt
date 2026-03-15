@@ -16,4 +16,4 @@ seaborn
 sentence-transformers
 tqdm
 tensorboardX
-transformers==4.56
+transformers<5.0
