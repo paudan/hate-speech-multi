@@ -124,7 +124,7 @@ def calculate_scores(actual, predictions, task_name, average='binary', pos_label
 
 
 def evaluate_model(model_dir, eval_data_dir, cache_dir, pos_label=1):
-    model = MultiTaskModel(model_dir, cache_dir)
+    model = MultiTaskModel(model_dir, cache_dir=cache_dir)
     dataset = MultitaskDatasetLong(
         eval_data_dir, 
         preprocessor=AutoTokenizer.from_pretrained(model_dir, cache_dir=cache_dir), 
