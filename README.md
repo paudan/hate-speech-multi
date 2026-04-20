@@ -1,6 +1,6 @@
 # Hate Speech Detection using Multitask Learning
 
-This project implements multitask learning for hate speech and toxicity detection, developed as part of the HIPSTER project (in Lithuanian: _Hibridinių, informacinių, psichologinių ir visuomeninių grėsmių valdymo sistema viešosios saugos sektoriaus specialistams, verslui ir švietimui_) project at Kaunas University of Technology (KTU). It supports various transformer architectures and is specifically developed tested on Lithuanian and English datasets.
+This project implements multitask learning for hate speech and toxicity detection, developed as part of the HIPSTER project (in Lithuanian: _Hibridinių, informacinių, psichologinių ir visuomeninių grėsmių valdymo sistema viešosios saugos sektoriaus specialistams, verslui ir švietimui_) project at Kaunas University of Technology (KTU). It supports various transformer architectures and is specifically developed and tested on Lithuanian and English datasets.
 
 ## Key Features
 
