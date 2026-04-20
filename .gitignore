@@ -181,6 +181,7 @@ example/
 mlruns/
 old_results/
 outputs/
+perf/*.tex
 results/
 *.zip
 *.tar.xz
