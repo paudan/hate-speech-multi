@@ -10,7 +10,6 @@ This project implements multitask learning for hate speech and toxicity detectio
 - **Advanced Loss Functions**: Support for weighted cross-entropy and multiclass focal loss to handle imbalanced datasets.
 - **Data Augmentation**: Scripts and notebooks for augmenting datasets using Gemma-based generation.
 
-
 ## Results
 
 Detailed performance metrics and evaluation results are stored in the `perf/` directory.
@@ -25,7 +24,7 @@ Detailed performance metrics and evaluation results are stored in the `perf/` di
 The following tables summarize the performance of various models on the Berkeley and Lithuanian datasets across multiple classification tasks:
 
 #### Berkeley Dataset Results
-Performance on the Berkeley multitask dataset using E5-large, showing robust results across different target groups.
+Performance on the Berkeley multitask dataset using E5-large, showing robust results across different target groups. The original dataset was augmented with [Toxigen](https://huggingface.co/datasets/toxigen/toxigen-data) dataset to increase variability. The table also shows validation results using [HateCheck](https://github.com/paul-rottger/hatecheck-data) benchmark dataset 
 
 ![Berkeley Results](perf/berkeley_table.png)
 
@@ -72,6 +71,8 @@ python3 multitarget_trainer.py \
 ```
 
 Refer to the `.sh` scripts in the root directory for more specialized training examples.
+
+Note that this is an experimental code which is not tested or expected to run in production settings
 
 ## License
 
