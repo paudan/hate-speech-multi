@@ -15,7 +15,7 @@ This project implements multitask learning for hate speech and toxicity detectio
 Detailed performance metrics and evaluation results are stored in the `perf/` directory.
 
 ### Base Models
-- **E5-large (multilingual)**: A state-of-the-art text embedding model based on the XLM-RoBERTa architecture, trained with contrastive learning to provide high-quality representations for over 100 languages.
+- **E5 (multilingual)**: A state-of-the-art text embedding model based on the XLM-RoBERTa architecture, trained with contrastive learning to provide high-quality representations for over 100 languages.
 - **LaBSE (Language-Agnostic BERT Sentence Embedding)**: A model developed by Google Research specifically for multilingual sentence embeddings. It is optimized to map translations of the same sentence to similar locations in the embedding space.
 - **LitLatBERT**: a trilingual model, using xlm-roberta-base architecture, trained on Lithuanian, Latvian, and English corpora. Focusing on three languages, the model performs better than multilingual BERT, while still offering an option for cross-lingual knowledge transfer
 
@@ -24,25 +24,28 @@ Detailed performance metrics and evaluation results are stored in the `perf/` di
 The following tables summarize the performance of various models on the Berkeley and Lithuanian datasets across multiple classification tasks:
 
 #### Berkeley Dataset Results
-Performance on the Berkeley multitask dataset using E5-large, showing robust results across different target groups. The original dataset was augmented with [Toxigen](https://huggingface.co/datasets/toxigen/toxigen-data) dataset to increase variability. The table also shows validation results using [HateCheck](https://github.com/paul-rottger/hatecheck-data) benchmark dataset 
+Performance on the Berkeley multitask dataset using E5-large, showing robust results across different target groups. The original dataset was augmented with [Toxigen](https://huggingface.co/datasets/toxigen/toxigen-data) dataset to increase variability. The table also shows validation results using [HateCheck](https://github.com/paul-rottger/hatecheck-data) benchmark dataset,
 
 ![Berkeley Results](perf/berkeley_table.png)
 
 #### Lithuanian Dataset Results
-Comparison of E5-large, LaBSE, and LitLatBert on Lithuanian target group identification. Both E5 and LaBSE show superior performance in identifying specific hate speech targets compared to smaller regional models.
+Comparison of E5-large, LaBSE, and LitLatBert on Lithuanian target group identification. Both E5 and LaBSE show superior performance in identifying specific hate speech targets compared to smaller regional models. 
 
-![Lithuanian Results](perf/lith_table.png)
+![Lithuanian Results](perf/lith_groups_table.png)
 
-Complete results can be found in [this file](perf/lith_hate.csv) which contains classification performance for all the targets available in the Lithuanian Hate speech dataset. Again, E5 and LaBSE outperformed LitLatBERT model with  
+Complete results can be found in [this file](perf/lith_hate.csv) which contains classification performance for all the targets available in the Lithuanian Hate speech dataset. Again, E5 and LaBSE outperformed LitLatBERT model significantly. Moreover, augmenting the original data with synthetic data generated using Gemma 3 also helped to improve results for some targets
 
 ## Project Structure
-
+- `simple_trainer.py`: Script for training traditional single-target models
+- `multitarget_trainer.py`: Script for training multi-target models
 - `multitask_trainer.py`: Main script for training multitask models.
 - `models/`: Contains multitask architecture implementations (`Bert`, `Gemma`, `ModernBert`).
 - `dataset/`: Custom data loaders for various datasets (Lithuanian, Berkeley, HateCheck, AICP-FIMI).
 - `augmentation/`: Data augmentation pipelines.
 - `experiments/`: Jupyter notebooks with experimental results and analyses.
 - `train_*.sh`: Shell scripts for common training configurations.
+
+Here, `multitarget` and `multitask` basically refer to the same problem type; the main difference is input dataset structure. The difference between input data formats is reflected in `datasets-demo.ipynb`  
 
 ## Setup
 

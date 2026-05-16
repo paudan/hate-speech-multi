@@ -69,12 +69,33 @@ def augment_dataset(data_dir, new_dir, name):
         dataset['train'] = datasets.concatenate_datasets([dataset['train'], df_aug])
         dataset.save_to_disk(os.path.join(new_dir, task_dir))
 
+def augment_grouped_dataset(data_dir, new_dir):
+    shutil.rmtree(new_dir, ignore_errors=True)
+    shutil.copytree(data_dir, new_dir, dirs_exist_ok=True)
+    target_match_map = dict(zip(['country', 'sexuality', 'politics', 'race', 'religion'], target_groups))
+    for group_name, target_name in target_match_map.items():
+        task_dir = f'target={group_name}'
+        try:
+            dataset = DatasetDict.load_from_disk(os.path.join(data_dir, task_dir))
+        except FileNotFoundError:
+            print(f"Group {group_name} not found in the source dataset, skipping")
+            continue
+        df_aug = pd.read_csv(os.path.join(output_dir, f"hs_{target_name}_generated.csv"))
+        df_aug = pd.DataFrame({'text': df_aug['text'], 'value': 1, 'task_name': group_name})
+        df_aug = Dataset.from_pandas(df_aug).cast_column('value', dataset['train'].features['value'])
+        dataset['train'] = datasets.concatenate_datasets([dataset['train'], df_aug])
+        dataset.save_to_disk(os.path.join(new_dir, task_dir))
+
 for name in target_groups + ['full']:
     augment_dataset(
         os.path.join(data_dir, f'lith_dataset_balanced_{name}_multi'), 
         os.path.join(output_path, f"lith_dataset_augmented_{name}"),
         name
     )
+augment_grouped_dataset(
+    os.path.join(data_dir, f'lith_dataset_balanced_groups_full'),
+    os.path.join(output_path, f"lith_dataset_augmented_groups_full")
+)
 
 ### If augmented data is injected before split operation ###
 
